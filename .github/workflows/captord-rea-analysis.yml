@@ -1,0 +1,90 @@
+name: Captord APK + REA analysis
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/captord-rea-analysis.yml"
+      - "docs/reverse-engineering/captord.md"
+      - "README.md"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: captord-rea-analysis-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout VORTEX workspace
+        uses: actions/checkout@v4
+
+      - name: Checkout Captord reference source
+        uses: actions/checkout@v4
+        with:
+          repository: Drenzzz/Captord
+          ref: main
+          path: reference/Captord
+          persist-credentials: false
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android build platform
+        run: sdkmanager "platform-tools" "platforms;android-37" "build-tools;37.0.0"
+
+      - name: Build Captord debug APK
+        working-directory: reference/Captord
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon :app:assembleDebug
+
+      - name: Set up Node.js for REA
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.11.0"
+
+      - name: Install pinned JADX headless engine
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/rea-android"
+          cd "$RUNNER_TEMP/rea-android"
+          curl -fL --retry 3 -o jadx-headless-mcp-0.7.1-all.jar \
+            https://github.com/1013503897/jadx-headless-mcp/releases/download/v0.7.1/jadx-headless-mcp-0.7.1-all.jar
+          echo "6e5eacf500b64292bfb73c49797c1958f6ee44646e43e868039ae7feb573ff75  jadx-headless-mcp-0.7.1-all.jar" | sha256sum -c -
+          echo "REA_JADX_MCP_JAR=$RUNNER_TEMP/rea-android/jadx-headless-mcp-0.7.1-all.jar" >> "$GITHUB_ENV"
+
+      - name: Verify REA runtime
+        run: |
+          node --version
+          java --version
+          java --list-modules | grep '^jdk.compiler@'
+
+      - name: Analyze APK with REA
+        shell: bash
+        run: |
+          mkdir -p reports/captord
+          APK="reference/Captord/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          npx --yes rea-agents@6.7.0 inspect-android-package "$APK" --json | tee reports/captord/package-analysis.json
+
+      - name: Upload APK and REA report
+        uses: actions/upload-artifact@v4
+        with:
+          name: VORTEX-Captord-REA-analysis
+          path: |
+            reference/Captord/app/build/outputs/apk/debug/app-debug.apk
+            reports/captord/package-analysis.json
+          if-no-files-found: error
+          retention-days: 14
