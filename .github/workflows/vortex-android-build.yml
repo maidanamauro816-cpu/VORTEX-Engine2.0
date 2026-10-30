@@ -46,7 +46,10 @@ jobs:
         uses: android-actions/setup-android@035682743ab223ec9c6169af09811dff8247e520
         with:
           cmdline-tools-version: 15859902
-          packages: platform-tools;platforms;android-37;build-tools;37.0.0
+          packages: |
+            platform-tools
+            platforms;android-37
+            build-tools;37.0.0
 
       - name: Build debug APK
         working-directory: upstream
