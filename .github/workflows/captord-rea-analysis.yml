@@ -2,12 +2,6 @@ name: Captord APK + REA analysis
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/captord-rea-analysis.yml"
-      - "docs/reverse-engineering/captord.md"
-      - "README.md"
 
 permissions:
   contents: read
@@ -39,7 +33,10 @@ jobs:
           java-version: "21"
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@035682743ab223ec9c6169af09811dff8247e520
+        with:
+          cmdline-tools-version: 15859902
+          packages: platform-tools
 
       - name: Install Android build platform
         run: sdkmanager "platform-tools" "platforms;android-37" "build-tools;37.0.0"
