@@ -54,3 +54,15 @@ REA/JADX produce una representación decompilada; no reconstruye necesariamente 
 ## Siguiente etapa
 
 Tras obtener el informe, implementar VORTEX Recorder con identidad, paquete, pantallas y arquitectura propios. Reutilizar únicamente componentes cuya licencia y procedencia estén claras, manteniendo los avisos MIT cuando corresponda. No copiar claves, firmas, identificadores privados ni datos de usuario.
+
+## Diagnóstico del primer fallo de CI (2026-10-30)
+
+El primer workflow terminó en el paso `Set up Android SDK`, antes de descargar las plataformas, compilar Captord o iniciar REA. El log registró `Warning: Failed to find package 'tools'` y `sdkmanager ... failed with exit code 1`. La versión anterior de la acción Android solicitaba el paquete obsoleto `tools`, que Google ya no publica.
+
+Corrección aplicada:
+
+- Actualizar la acción `android-actions/setup-android` a una revisión actual que usa command-line tools 22.0 y no solicita el paquete obsoleto.
+- Declarar explícitamente `packages: platform-tools`.
+- Dejar el workflow únicamente con `workflow_dispatch`: los commits de corrección no lanzan compilaciones automáticamente. La siguiente ejecución debe iniciarse manualmente después de revisar esta corrección.
+
+El fallo original no aporta evidencia sobre errores del código fuente de Captord ni de REA, porque esos pasos nunca comenzaron.
